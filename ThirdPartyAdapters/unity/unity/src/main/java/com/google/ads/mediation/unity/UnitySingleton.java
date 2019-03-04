@@ -1,25 +1,15 @@
-// Copyright 2016 Google Inc.
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-
 package com.google.ads.mediation.unity;
 
 import android.app.Activity;
-import android.util.Log;
+import android.content.Context;
 
+import com.unity3d.ads.IUnityAdsListener;
 import com.unity3d.ads.UnityAds;
-import com.unity3d.ads.mediation.IUnityAdsExtendedListener;
 import com.unity3d.ads.metadata.MediationMetaData;
+import com.unity3d.services.UnitySdkListener;
+import com.unity3d.services.UnityServices;
+import com.unity3d.services.monetization.UnityMonetization;
+import com.unity3d.services.monetization.mobileads.UnityMobileAds;
 
 import java.lang.ref.WeakReference;
 import java.util.Collections;
@@ -27,215 +17,211 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Set;
 
-/**
- * The {@link UnitySingleton} class is used to load {@link UnityAds}, handle multiple
- * {@link UnityAdapter} instances and mediate their callbacks.
- */
-public final class UnitySingleton {
+public class UnitySingleton implements UnitySdkListener {
+	// The name of this mediation adapter.
+    private static final String MEDIATION_ADAPTER_NAME = "AdMob";
+    // The version of this mediation adapter.
+    private static final String MEDIATION_ADAPTER_VERSION = "3.0.0";
+
+    // The only instance of UnitySingleton
+    private static UnitySingleton mInstance;
 
     /**
-     * A synchronized hash set used to hold UnityAdapterDelegates.
+     * Returns the global instance of the UnitySingleton, creating it if it does not exist yet.
+     * @return
      */
-    private static Set<WeakReference<UnityAdapterDelegate>> mUnityAdapterDelegatesSet =
-            Collections.synchronizedSet(new HashSet<WeakReference<UnityAdapterDelegate>>());
-
-    /**
-     * A weak reference to the {@link UnityAdapterDelegate} of the {@link UnityAdapter} that is
-     * currently displaying an ad.
-     */
-    private static WeakReference<UnityAdapterDelegate> mAdShowingAdapterDelegate;
-
-    /**
-     * The only instance of
-     * {@link com.google.ads.mediation.unity.UnitySingleton.UnitySingletonListener}.
-     */
-    private static UnitySingletonListener unitySingletonListenerInstance;
-
-    /**
-     * This method will return the
-     * {@link com.google.ads.mediation.unity.UnitySingleton.UnitySingletonListener} instance.
-     *
-     * @return the {@link #unitySingletonListenerInstance}.
-     */
-    private static UnitySingletonListener getInstance() {
-        if (unitySingletonListenerInstance == null) {
-            unitySingletonListenerInstance = new UnitySingletonListener();
+    public synchronized static UnitySingleton getInstance() {
+        if (mInstance == null) {
+            mInstance = new UnitySingleton();
         }
-        return unitySingletonListenerInstance;
+        return mInstance;
     }
 
     /**
-     * Removes the weak references from {@link #mUnityAdapterDelegatesSet} whose object is
-     * cleared, and add a weak reference of the given {@link UnityAdapterDelegate} to the set.
-     *
-     * @param unityAdapterDelegate to be added to {@link #mUnityAdapterDelegatesSet}.
+     * State of the UnityAds SDK.
      */
-    private static void addUnityAdapterDelegate(UnityAdapterDelegate unityAdapterDelegate) {
-        Iterator<WeakReference<UnityAdapterDelegate>> iterator =
-                mUnityAdapterDelegatesSet.iterator();
-        while (iterator.hasNext()) {
-            UnityAdapterDelegate delegate = iterator.next().get();
-            if (delegate == null) {
-                iterator.remove();
-            } else if (delegate.equals(unityAdapterDelegate)) {
-                return;
+    public enum UnitySdkInitState {
+        NOT_INITIALIZED,
+        INITIALIZING,
+        INITIALIZED,
+        ERROR
+    }
+
+    private static final String GAME_ID_KEY = "gameId";
+
+    // A queue of sdk listeners to be notified
+    private Set<WeakReference<UnitySdkListener>> mSdkListeners =
+            Collections.synchronizedSet(new HashSet<WeakReference<UnitySdkListener>>());
+
+    // Boolean to determine if the SDK is initialized or not. Will be set when SDK is finished
+    // initializing.
+    private UnitySdkInitState mInitState = UnitySdkInitState.NOT_INITIALIZED;
+
+    // If the SDK initialized with an exception, we will record it to prevent reinitialization.
+    // Assume this will be non-null if mInitState is InitState.ERROR
+    private Exception mInitException;
+
+    /**
+     * Hidden constructor.
+     */
+    private UnitySingleton() { /**/ }
+
+    /**
+     * Initializes UnityAds.
+     *
+     * @param context The android context passed from the mediation provider.
+     * @param sdkListener The SDK lifecycle listener, will be used to notify when SDK initializes or
+     *                    fails to initialize.
+     * @return True if initialization was called, false if it was already initialized.
+     */
+    public boolean initUnityAds(Context context,
+                                String gameId,
+                                UnitySdkListener sdkListener) {
+        if (isState(UnitySdkInitState.INITIALIZED)) {
+            // if already initialized, then just notify the SDK listener.
+            sdkListener.onSdkInitialized();
+            return false;
+        } else if (isState(UnitySdkInitState.ERROR)) {
+            // An error occurred while initializing, so just notify the SDK listener.
+            sdkListener.onSdkInitializationFailed(mInitException);
+            return false;
+        } else if (isState(UnitySdkInitState.INITIALIZING)) {
+            // If we are already initializing, we will just append the SDK listener to the set.
+            mSdkListeners.add(new WeakReference<>(sdkListener));
+            return false;
+        } else {
+            // Actually do the initialization.
+            mSdkListeners.add(new WeakReference<>(sdkListener));
+            if (!doInit(context, gameId)) {
+                // An error occurred within the sanity check of UnityAds. Assume that the state is now errored.
+                notifyListenersSdkInitializationDidFail();
             }
         }
-        mUnityAdapterDelegatesSet.add(new WeakReference<>(unityAdapterDelegate));
-    }
-
-    /**
-     * This method will initialize {@link UnityAds}.
-     *
-     * @param delegate Used to forward events to the adapter.
-     * @param activity Used to initialize {@link UnityAds}.
-     * @param gameId   Unity Ads Game ID.
-     * @return {@code true} if the {@link UnityAds} has initialized successfully, {@code false}
-     * otherwise.
-     */
-    public static boolean initializeUnityAds(UnityAdapterDelegate delegate,
-                                             Activity activity,
-                                             String gameId) {
-        // Check if the current device is supported by Unity Ads before initializing.
-        if (!UnityAds.isSupported()) {
-            Log.w(UnityAdapter.TAG, "The current device is not supported by Unity Ads.");
-            return false;
-        }
-
-        if (UnityAds.isInitialized()) {
-            // Unity Ads is already initialized.
-            return true;
-        }
-
-        // Add the delegate to the set so that the callbacks from Unity Ads can be forwarded to
-        // the adapter.
-        addUnityAdapterDelegate(delegate);
-
-        // Set mediation meta data before initializing.
-        MediationMetaData mediationMetaData = new MediationMetaData(activity);
-        mediationMetaData.setName("AdMob");
-        mediationMetaData.setVersion("3.0.0.0");
-        mediationMetaData.commit();
-
-        UnityAds.initialize(activity, gameId, UnitySingleton.getInstance());
-
         return true;
     }
 
     /**
-     * This method will load Unity ads for a given Placement ID and send the ad loaded event if the
-     * ads have already loaded.
-     *
-     * @param delegate Used to forward Unity Ads events to the adapter.
+     * Returns if the UnitySingleton is in a given state
+     * @param testState The state to test against
+     * @return True if in the given state, else false.
      */
-    protected static void loadAd(UnityAdapterDelegate delegate) {
-        // Unity ads does not have a load method and ads begin to load when initialize is called.
-        // So, we check if unity ads is initialized to determine whether or not the ads are loading.
-        // If Unity Ads is initialized, we call the appropriate callbacks by checking the isReady
-        // method. If ads are currently being loaded, wait for the callbacks from
-        // unitySingletonListenerInstance.
+    private boolean isState(UnitySdkInitState testState) {
+        return mInitState.equals(testState);
+    }
+
+    /**
+     * Actually does the initializing UnityAds.
+     * @param context
+     * @param gameId
+     *
+     * @return True if initialization was started, else false for error.
+     */
+    private boolean doInit(Context context, String gameId) {
         if (UnityAds.isInitialized()) {
-            if (UnityAds.isReady(delegate.getPlacementId())) {
-                delegate.onUnityAdsReady(delegate.getPlacementId());
-            } else {
-                delegate.onUnityAdsError(
-                        UnityAds.UnityAdsError.INTERNAL_ERROR, delegate.getPlacementId());
+            // In theory, this should never occur, but let's sanity check it anyway.
+            return true;
+        }
+
+        mInitState = UnitySdkInitState.INITIALIZING;
+
+        if (!UnityAds.isSupported()) {
+            setErrorState(new IllegalStateException("Platform is not supported for Unity Ads"));
+            return false;
+        }
+
+        // Validate the game ID
+        if (gameId == null || gameId.isEmpty()) {
+            setErrorState(new IllegalArgumentException(String.format(
+                    "Server extras did not contain key for: \"%s\"", GAME_ID_KEY)));
+            return false;
+        }
+
+        // Validate the context
+        if (context == null || !(context instanceof Activity)) {
+            setErrorState(new IllegalArgumentException("Context was not a valid Activity instance"));
+            return false;
+        }
+
+        setMediationMetadata(context);
+
+        UnityServices.addSdkListener(this);
+        UnityMobileAds.enablePerPlacementLoading();
+        UnityMonetization.initialize((Activity) context, gameId);
+        return true;
+    }
+
+    @Override
+    public void onSdkInitialized() {
+        mInitState = UnitySdkInitState.INITIALIZED;
+
+        Iterator<WeakReference<UnitySdkListener>> it = mSdkListeners.iterator();
+        while (it.hasNext()) {
+            try {
+                UnitySdkListener listener = it.next().get();
+                if (listener != null) {
+                    listener.onSdkInitialized();
+                }
+            } finally {
+                it.remove();
+            }
+        }
+    }
+
+    @Override
+    public void onSdkInitializationFailed(Exception e) {
+        setErrorState(e);
+        notifyListenersSdkInitializationDidFail();
+    }
+
+    private void notifyListenersSdkInitializationDidFail() {
+        Iterator<WeakReference<UnitySdkListener>> it = mSdkListeners.iterator();
+        while (it.hasNext()) {
+            try {
+                UnitySdkListener listener = it.next().get();
+                if (listener != null) {
+                    listener.onSdkInitializationFailed(mInitException);
+                }
+            } finally {
+                it.remove();
             }
         }
     }
 
     /**
-     * This method will show an Unity Ad.
-     *
-     * @param delegate Used to forward Unity Ads events to the adapter.
-     * @param activity An Android {@link Activity} required to show an ad.
+     * Sets the singleton into the errored state with the given message.
+     * @param e The exception to set as the init exception.
      */
-    protected static void showAd(UnityAdapterDelegate delegate, Activity activity) {
-        mAdShowingAdapterDelegate = new WeakReference<>(delegate);
-
-        // Every call to UnityAds#show will result in an onUnityAdsFinish callback (even when
-        // Unity Ads fails to shown an ad).
-        UnityAds.show(activity, delegate.getPlacementId());
+    private void setErrorState(Exception e) {
+        mInitState = UnitySdkInitState.ERROR;
+        mInitException = e;
     }
 
     /**
-     * The {@link com.google.ads.mediation.unity.UnitySingleton.UnitySingletonListener} is used
-     * to forward events from Unity Ads SDK to {@link UnityAdapter} based on the delegates added
-     * to {@link #mUnityAdapterDelegatesSet} and which adapter is currently showing an ad.
+     * Sets the Mediation metadata within UnityAds
+     * @param context Context used to initialize UnityAds.
      */
-    private static final class UnitySingletonListener implements IUnityAdsExtendedListener {
+    private void setMediationMetadata(Context context) {
+        MediationMetaData mediationMetaData = new MediationMetaData(context);
+        mediationMetaData.setName(MEDIATION_ADAPTER_NAME);
+        mediationMetaData.setVersion(MEDIATION_ADAPTER_VERSION);
+        mediationMetaData.commit();
+    }
+
+    /**
+     * This class is needed for {@link UnityAds#initialize(Activity, String, IUnityAdsListener)},
+     * but is not actually used under mediation.
+     */
+    private class NullUnityAdsListener implements IUnityAdsListener {
+        @Override
+        public void onUnityAdsReady(String s) { }
 
         @Override
-        public void onUnityAdsReady(String placementId) {
-            // Unity Ads is ready to show ads for the given placementId. Send ready callback to the
-            // appropriate delegates.
-            Iterator<WeakReference<UnityAdapterDelegate>> iterator =
-                    mUnityAdapterDelegatesSet.iterator();
-            while (iterator.hasNext()) {
-                UnityAdapterDelegate delegate = iterator.next().get();
-                if (delegate != null && delegate.getPlacementId().equals(placementId)) {
-                    delegate.onUnityAdsReady(placementId);
-                    iterator.remove();
-                }
-            }
-        }
+        public void onUnityAdsStart(String s) { }
 
         @Override
-        public void onUnityAdsStart(String placementId) {
-            // Unity Ads video ad started. Send video started event to currently showing
-            // adapter's delegate.
-            if (mAdShowingAdapterDelegate != null) {
-                UnityAdapterDelegate delegate = mAdShowingAdapterDelegate.get();
-                if (delegate != null) {
-                    delegate.onUnityAdsStart(placementId);
-                }
-            }
-        }
+        public void onUnityAdsFinish(String s, UnityAds.FinishState finishState) { }
 
         @Override
-        public void onUnityAdsClick(String placementId) {
-            // An Unity Ads ad has been clicked. Send ad clicked event to currently showing
-            // adapter's delegate.
-            if (mAdShowingAdapterDelegate != null) {
-                UnityAdapterDelegate delegate = mAdShowingAdapterDelegate.get();
-                if (delegate != null) {
-                    delegate.onUnityAdsClick(placementId);
-                }
-            }
-        }
-
-        @Override
-        public void onUnityAdsPlacementStateChanged(String placementId,
-                                                    UnityAds.PlacementState oldState,
-                                                    UnityAds.PlacementState newState) {
-            // The onUnityAdsReady and onUnityAdsError callback methods are used to forward Unity
-            // Ads SDK states to the adapters. No need to forward this callback to the adapters.
-        }
-
-        @Override
-        public void onUnityAdsFinish(String placementId, UnityAds.FinishState finishState) {
-            // An Unity Ads ad has been closed. Forward the finish event to the currently showing
-            // adapter's delegate.
-            if (mAdShowingAdapterDelegate != null) {
-                UnityAdapterDelegate delegate = mAdShowingAdapterDelegate.get();
-                if (delegate != null) {
-                    delegate.onUnityAdsFinish(placementId, finishState);
-                }
-            }
-        }
-
-        @Override
-        public void onUnityAdsError(UnityAds.UnityAdsError unityAdsError, String placementId) {
-            // An error occurred with Unity Ads. Send error event to the appropriate delegates.
-            Iterator<WeakReference<UnityAdapterDelegate>> iterator =
-                    mUnityAdapterDelegatesSet.iterator();
-            while (iterator.hasNext()) {
-                UnityAdapterDelegate delegate = iterator.next().get();
-                if (delegate != null && delegate.getPlacementId().equals(placementId)) {
-                    delegate.onUnityAdsError(unityAdsError, placementId);
-                    iterator.remove();
-                }
-            }
-        }
+        public void onUnityAdsError(UnityAds.UnityAdsError unityAdsError, String s) { }
     }
 }
