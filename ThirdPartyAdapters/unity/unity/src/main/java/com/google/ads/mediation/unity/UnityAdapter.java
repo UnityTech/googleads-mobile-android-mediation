@@ -256,6 +256,8 @@ public class UnityAdapter implements MediationRewardedVideoAdAdapter, MediationI
             mInterstitialAdAdapter.onSdkInitialized();
         } else if (mRewardedVideoAdapter != null) {
             mRewardedVideoAdapter.onSdkInitialized();
+        } else if (mBannerAdapter != null) {
+            mBannerAdapter.onSdkInitialized();
         }
     }
 
@@ -265,6 +267,8 @@ public class UnityAdapter implements MediationRewardedVideoAdAdapter, MediationI
             mInterstitialAdAdapter.onSdkInitializationFailed(e);
         } else if (mRewardedVideoAdapter != null) {
             mRewardedVideoAdapter.onSdkInitializationFailed(e);
+        } else if (mBannerAdapter != null) {
+            mBannerAdapter.onSdkInitializationFailed(e);
         }
     }
 
@@ -450,7 +454,7 @@ public class UnityAdapter implements MediationRewardedVideoAdAdapter, MediationI
                 }
                 mMediationRewardedVideoAdListener.onAdClosed(UnityAdapter.this);
             }
-
+            destroy();
         }
 
         @Override
@@ -469,16 +473,12 @@ public class UnityAdapter implements MediationRewardedVideoAdAdapter, MediationI
 
         public void loadAd() {
         	if (mRewardedVideo != null) {
-        		if (mRewardedVideo.isReady()) {
-        			if (mMediationRewardedVideoAdListener != null) {
-        			    mMediationRewardedVideoAdListener.onAdLoaded(UnityAdapter.this);
-                    }
-                }
-            } else {
-        	    mRewardedVideo = new RewardedVideoAd(mActivityWeakReference.get(), mPlacementId);
-        	    mRewardedVideo.setListener(this);
-        	    mRewardedVideo.load();
+                mRewardedVideo.destroy();
             }
+
+			mRewardedVideo = new RewardedVideoAd(mActivityWeakReference.get(), mPlacementId);
+			mRewardedVideo.setListener(this);
+			mRewardedVideo.load();
         }
 
         public void show() {
@@ -493,6 +493,7 @@ public class UnityAdapter implements MediationRewardedVideoAdAdapter, MediationI
         public void destroy() {
             if (mRewardedVideo != null) {
                 mRewardedVideo.destroy();
+                mRewardedVideo = null;
             }
         }
     }
@@ -512,6 +513,7 @@ public class UnityAdapter implements MediationRewardedVideoAdAdapter, MediationI
             if (mBannerAd != null) {
                 mBannerAd = new BannerAd(mActivityWeakReference.get(), mPlacementId, new BannerSize(mAdSize.getWidth(), mAdSize.getHeight()));
                 mBannerAd.setListener(this);
+                mBannerAd.setAutoRefresh(false);
                 mBannerAd.load();
             }
         }
