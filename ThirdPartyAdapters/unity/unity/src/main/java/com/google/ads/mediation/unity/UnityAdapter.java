@@ -358,6 +358,13 @@ public class UnityAdapter implements MediationRewardedVideoAdAdapter, MediationI
         }
 
         @Override
+        public void onInterstitialAdOpened(InterstitialAd ad) {
+        	if (mMediationInterstitialListener != null) {
+                mMediationInterstitialListener.onAdOpened(UnityAdapter.this);
+            }
+        }
+
+        @Override
         public void onInterstitialAdLeavingApplication(InterstitialAd interstitialAd) {
             if (mMediationInterstitialListener != null) {
                 mMediationInterstitialListener.onAdLeftApplication(UnityAdapter.this);
