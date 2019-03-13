@@ -118,7 +118,10 @@ public class UnitySingleton implements UnitySdkListener {
      */
     private boolean doInit(Context context, String gameId) {
         if (UnityAds.isInitialized()) {
-            // In theory, this should never occur, but let's sanity check it anyway.
+            // Quite possibly we are being used in two different mediation platforms. Because we initialized
+            // from elsewhere, let's just set our state and notify the listeners.
+            mInitState = UnitySdkInitState.INITIALIZED;
+            onSdkInitialized();
             return true;
         }
 
