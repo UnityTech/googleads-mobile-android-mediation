@@ -17,7 +17,6 @@ package com.google.ads.mediation.facebook;
 import android.content.Context;
 import android.content.pm.PackageManager;
 import android.content.res.Resources;
-import android.graphics.Typeface;
 import android.graphics.drawable.Drawable;
 import android.net.Uri;
 import android.os.AsyncTask;
@@ -34,9 +33,9 @@ import android.widget.ImageView;
 import android.widget.RelativeLayout;
 
 import com.facebook.ads.Ad;
-import com.facebook.ads.AdChoicesView;
 import com.facebook.ads.AdError;
 import com.facebook.ads.AdListener;
+import com.facebook.ads.AdOptionsView;
 import com.facebook.ads.AdSettings;
 import com.facebook.ads.AdView;
 import com.facebook.ads.AudienceNetworkAds;
@@ -45,8 +44,8 @@ import com.facebook.ads.InterstitialAdListener;
 import com.facebook.ads.MediaView;
 import com.facebook.ads.MediaViewListener;
 import com.facebook.ads.NativeAd;
+import com.facebook.ads.NativeAdLayout;
 import com.facebook.ads.NativeAdListener;
-import com.facebook.ads.NativeAdViewAttributes;
 import com.facebook.ads.RewardedVideoAd;
 import com.facebook.ads.RewardedVideoAdListener;
 import com.google.android.gms.ads.AdRequest;
@@ -63,6 +62,7 @@ import com.google.android.gms.ads.mediation.MediationNativeAdapter;
 import com.google.android.gms.ads.mediation.MediationNativeListener;
 import com.google.android.gms.ads.mediation.NativeAppInstallAdMapper;
 import com.google.android.gms.ads.mediation.NativeMediationAdRequest;
+import com.google.android.gms.ads.mediation.UnifiedNativeAdMapper;
 import com.google.android.gms.ads.reward.RewardItem;
 import com.google.android.gms.ads.reward.mediation.MediationRewardedVideoAdAdapter;
 import com.google.android.gms.ads.reward.mediation.MediationRewardedVideoAdListener;
@@ -81,23 +81,8 @@ public final class FacebookAdapter
         implements MediationBannerAdapter, MediationInterstitialAdapter,
         MediationRewardedVideoAdAdapter, MediationNativeAdapter {
 
-    public static final String KEY_AD_VIEW_ATTRIBUTES = "ad_view_attributes";
-    public static final String KEY_AUTOPLAY = "autoplay";
-    public static final String KEY_BACKGROUND_COLOR = "background_color";
-    public static final String KEY_BUTTON_BORDER_COLOR = "button_border_color";
-    public static final String KEY_BUTTON_COLOR = "button_color";
-    public static final String KEY_BUTTON_TEXT_COLOR = "button_text_color";
-    public static final String KEY_DESCRIPTION_TEXT_COLOR = "description_text_color";
-    public static final String KEY_DESCRIPTION_TEXT_SIZE = "description_text_size";
     public static final String KEY_ID = "id";
-    public static final String KEY_IS_BOLD = "is_bold";
-    public static final String KEY_IS_ITALIC = "is_italic";
     public static final String KEY_SOCIAL_CONTEXT_ASSET = "social_context";
-    public static final String KEY_STYLE = "style";
-    public static final String KEY_SUBTITLE_ASSET = "subtitle";
-    public static final String KEY_TITLE_TEXT_COLOR = "title_text_color";
-    public static final String KEY_TITLE_TEXT_SIZE = "title_text_size";
-    public static final String KEY_TYPEFACE = "typeface";
 
     private static final String PLACEMENT_PARAMETER = "pubid";
 
@@ -139,12 +124,6 @@ public final class FacebookAdapter
      * sent to the Google Mobile Ads SDK.
      */
     private boolean mIsImpressionRecorded;
-
-    /**
-     * Flag to determine whether or not to make AdChoices icon for native ads expandable.
-     * {@code true} by default.
-     */
-    private boolean mIsAdChoicesIconExpandable = true;
 
     /**
      * A Facebook {@link MediaView} used to show native ad media content.
@@ -230,7 +209,7 @@ public final class FacebookAdapter
         mWrappedAdView.addView(mAdView);
         if (gmsVersion.get() == 0) {
             GMSVersionUpdateTask gmsVersionUpdateTask = new GMSVersionUpdateTask(context);
-             gmsVersionUpdateTask.Task(new GMSVersionUpdateTask.OnGMSUpdateListener() {
+            gmsVersionUpdateTask.Task(new GMSVersionUpdateTask.OnGMSUpdateListener() {
                 @Override
                 public void OnGMSVersionUpdate() {
                     AdSettings.setMediationService("ADMOB_" + gmsVersion);
@@ -273,7 +252,7 @@ public final class FacebookAdapter
         buildAdRequest(adRequest);
         if (gmsVersion.get() == 0) {
             GMSVersionUpdateTask gmsVersionUpdateTask = new GMSVersionUpdateTask(context);
-             gmsVersionUpdateTask.Task(new GMSVersionUpdateTask.OnGMSUpdateListener() {
+            gmsVersionUpdateTask.Task(new GMSVersionUpdateTask.OnGMSUpdateListener() {
                 @Override
                 public void OnGMSVersionUpdate() {
                     AdSettings.setMediationService("ADMOB_" + gmsVersion);
@@ -333,7 +312,7 @@ public final class FacebookAdapter
             buildAdRequest(mediationAdRequest);
             if (gmsVersion.get() == 0) {
                 GMSVersionUpdateTask gmsVersionUpdateTask = new GMSVersionUpdateTask(mContext);
-                 gmsVersionUpdateTask.Task(new GMSVersionUpdateTask.OnGMSUpdateListener() {
+                gmsVersionUpdateTask.Task(new GMSVersionUpdateTask.OnGMSUpdateListener() {
                     @Override
                     public void OnGMSVersionUpdate() {
                         AdSettings.setMediationService("ADMOB_" + gmsVersion);
@@ -401,12 +380,6 @@ public final class FacebookAdapter
 
         String placementId = serverParameters.getString(PLACEMENT_PARAMETER);
 
-        // Get the optional extras if set by the publisher.
-        if (mediationExtras != null) {
-            mIsAdChoicesIconExpandable = mediationExtras.getBoolean(
-                    FacebookExtrasBundleBuilder.KEY_EXPANDABLE_ICON, true);
-        }
-
         mMediaView = new MediaView(context);
 
         mNativeAd = new NativeAd(context, placementId);
@@ -414,7 +387,7 @@ public final class FacebookAdapter
         buildAdRequest(mediationAdRequest);
         if (gmsVersion.get() == 0) {
             GMSVersionUpdateTask gmsVersionUpdateTask = new GMSVersionUpdateTask(context);
-             gmsVersionUpdateTask.Task(new GMSVersionUpdateTask.OnGMSUpdateListener() {
+            gmsVersionUpdateTask.Task(new GMSVersionUpdateTask.OnGMSUpdateListener() {
                 @Override
                 public void OnGMSVersionUpdate() {
                     AdSettings.setMediationService("ADMOB_" + gmsVersion);
@@ -682,20 +655,37 @@ public final class FacebookAdapter
             }
 
             NativeAdOptions options = mMediationAdRequest.getNativeAdOptions();
-            // We always convert the ad into an app install ad.
-            final AppInstallMapper mapper = new AppInstallMapper(mNativeAd, options);
-            mapper.mapNativeAd(new NativeAdMapperListener() {
-                @Override
-                public void onMappingSuccess() {
-                    mNativeListener.onAdLoaded(FacebookAdapter.this, mapper);
-                }
+            if (mMediationAdRequest.isUnifiedNativeAdRequested()) {
+                final UnifiedAdMapper mapper = new UnifiedAdMapper(mNativeAd, options);
+                mapper.mapUnifiedNativeAd(new NativeAdMapperListener() {
+                    @Override
+                    public void onMappingSuccess() {
+                        mNativeListener.onAdLoaded(FacebookAdapter.this, mapper);
+                    }
 
-                @Override
-                public void onMappingFailed() {
-                    mNativeListener.onAdFailedToLoad(FacebookAdapter.this,
-                            AdRequest.ERROR_CODE_NO_FILL);
-                }
-            });
+                    @Override
+                    public void onMappingFailed() {
+                        mNativeListener.onAdFailedToLoad(FacebookAdapter.this,
+                                AdRequest.ERROR_CODE_NO_FILL);
+                    }
+                });
+
+            } else if (mMediationAdRequest.isAppInstallAdRequested() || mMediationAdRequest.isContentAdRequested()) {
+                // We always convert the ad into an app install ad.
+                final AppInstallMapper mapper = new AppInstallMapper(mNativeAd, options);
+                mapper.mapNativeAd(new NativeAdMapperListener() {
+                    @Override
+                    public void onMappingSuccess() {
+                        mNativeListener.onAdLoaded(FacebookAdapter.this, mapper);
+                    }
+
+                    @Override
+                    public void onMappingFailed() {
+                        mNativeListener.onAdFailedToLoad(FacebookAdapter.this,
+                                AdRequest.ERROR_CODE_NO_FILL);
+                    }
+                });
+            }
         }
 
         @Override
@@ -891,32 +881,6 @@ public final class FacebookAdapter
             Bundle extras = new Bundle();
             extras.putCharSequence(KEY_ID, mNativeAd.getId());
             extras.putCharSequence(KEY_SOCIAL_CONTEXT_ASSET, mNativeAd.getAdSocialContext());
-
-            NativeAdViewAttributes attributes = mNativeAd.getAdViewAttributes();
-            if (attributes != null) {
-                Bundle attributesBundle = new Bundle();
-                attributesBundle.putBoolean(KEY_AUTOPLAY, attributes.getAutoplay());
-                attributesBundle.putInt(KEY_BACKGROUND_COLOR, attributes.getBackgroundColor());
-                attributesBundle.putInt(KEY_BUTTON_BORDER_COLOR, attributes.getButtonBorderColor());
-                attributesBundle.putInt(KEY_BUTTON_COLOR, attributes.getButtonColor());
-                attributesBundle.putInt(KEY_BUTTON_TEXT_COLOR, attributes.getButtonTextColor());
-                attributesBundle.putInt(KEY_DESCRIPTION_TEXT_COLOR,
-                        attributes.getDescriptionTextColor());
-                attributesBundle.putInt(KEY_DESCRIPTION_TEXT_SIZE,
-                        attributes.getDescriptionTextSize());
-                attributesBundle.putInt(KEY_TITLE_TEXT_COLOR, attributes.getTitleTextColor());
-                attributesBundle.putInt(KEY_TITLE_TEXT_SIZE, attributes.getTitleTextSize());
-
-                Typeface typeface = attributes.getTypeface();
-                if (typeface != null) {
-                    Bundle typefaceBundle = new Bundle();
-                    typefaceBundle.putBoolean(KEY_IS_BOLD, typeface.isBold());
-                    typefaceBundle.putBoolean(KEY_IS_ITALIC, typeface.isItalic());
-                    typefaceBundle.putInt(KEY_STYLE, typeface.getStyle());
-                    attributesBundle.putBundle(KEY_TYPEFACE, typefaceBundle);
-                }
-                extras.putBundle(KEY_AD_VIEW_ATTRIBUTES, attributesBundle);
-            }
             setExtras(extras);
 
             mapperListener.onMappingSuccess();
@@ -947,14 +911,16 @@ public final class FacebookAdapter
             // top most view in the hierarchy.
             View overlayView = adView.getChildAt(adView.getChildCount() - 1);
             if (overlayView instanceof FrameLayout) {
-                // Create and add Facebook's AdChoicesView to the overlay view.
-                AdChoicesView adChoicesView =
-                        new AdChoicesView(view.getContext(), mNativeAd, mIsAdChoicesIconExpandable);
-                ((ViewGroup) overlayView).addView(adChoicesView);
+                NativeAdLayout nativeAdLayout = new NativeAdLayout(view.getContext());
+                ((FrameLayout) overlayView).addView(nativeAdLayout);
+                // Create and add Facebook's AdOptions to the overlay view.
+                AdOptionsView adOptionsView = new AdOptionsView(view.getContext(), mNativeAd,
+                        nativeAdLayout);
+                ((ViewGroup) overlayView).addView(adOptionsView);
                 // We know that the overlay view is a FrameLayout, so we get the FrameLayout's
-                // LayoutParams from the AdChoicesView.
+                // LayoutParams from the AdOptionsView.
                 FrameLayout.LayoutParams params =
-                        (FrameLayout.LayoutParams) adChoicesView.getLayoutParams();
+                        (FrameLayout.LayoutParams) adOptionsView.getLayoutParams();
                 if (mNativeAdOptions != null) {
                     switch (mNativeAdOptions.getAdChoicesPlacement()) {
                         case NativeAdOptions.ADCHOICES_TOP_LEFT:
@@ -976,11 +942,8 @@ public final class FacebookAdapter
                 }
                 adView.requestLayout();
             } else {
-
-                AdChoicesView adChoicesView =
-                        new AdChoicesView(view.getContext(), mNativeAd, mIsAdChoicesIconExpandable);
-                this.setAdChoicesContent(adChoicesView);
-
+                AdOptionsView adOptionsView = new AdOptionsView(view.getContext(), mNativeAd, null);
+                this.setAdChoicesContent(adOptionsView);
             }
 
             // Facebook does its own impression tracking.
@@ -1034,34 +997,232 @@ public final class FacebookAdapter
     }
 
     /**
-     * The {@link FacebookExtrasBundleBuilder} class is used to create a network extras bundle that
-     * can be passed to the adapter to make network specific customizations.
+     * The {@link UnifiedAdMapper} class is used to map Facebook native ads to Google Mobile Ads'
+     * UnifiedNative ads.
      */
-    public static class FacebookExtrasBundleBuilder {
+    class UnifiedAdMapper extends UnifiedNativeAdMapper {
 
         /**
-         * Key to add and obtain {@link #mIsExpandableIcon}.
+         * The Facebook native ad to be mapped.
          */
-        private static final String KEY_EXPANDABLE_ICON = "expandable_icon";
+        private NativeAd mNativeAd;
 
         /**
-         * Whether or not ad choices icon for native ads is expandable.
+         * Google Mobile Ads native ad options.
          */
-        private boolean mIsExpandableIcon;
+        private NativeAdOptions mNativeAdOptions;
 
-        public FacebookExtrasBundleBuilder setNativeAdChoicesIconExpandable(
-                boolean isExpandableIcon) {
-            this.mIsExpandableIcon = isExpandableIcon;
-            return FacebookExtrasBundleBuilder.this;
+        /**
+         * Default constructor for {@link UnifiedAdMapper}.
+         *
+         * @param nativeAd  The Facebook native ad to be mapped.
+         * @param adOptions {@link NativeAdOptions} containing the preferences to be used when
+         *                  mapping the native ad.
+         */
+        public UnifiedAdMapper(NativeAd nativeAd, NativeAdOptions adOptions) {
+            UnifiedAdMapper.this.mNativeAd = nativeAd;
+            UnifiedAdMapper.this.mNativeAdOptions = adOptions;
         }
 
-        public Bundle build() {
-            Bundle bundle = new Bundle();
-            bundle.putBoolean(KEY_EXPANDABLE_ICON, mIsExpandableIcon);
-            return bundle;
+        /**
+         * This method will map the Facebook {@link #mNativeAd} to this mapper and send a success
+         * callback if the mapping was successful or a failure callback if the mapping was
+         * unsuccessful.
+         *
+         * @param mapperListener used to send success/failure callbacks when mapping is done.
+         */
+        public void mapUnifiedNativeAd(NativeAdMapperListener mapperListener) {
+            if (!containsRequiredFieldsForUnifiedNativeAd(mNativeAd)) {
+                Log.w(TAG, "Ad from Facebook doesn't have all assets required for the Unified Ad"
+                        + " format.");
+                mapperListener.onMappingFailed();
+                return;
+            }
+
+            // Map all required assets (headline, one image, body, icon and call to
+            // action).
+            setHeadline(mNativeAd.getAdHeadline());
+            List<com.google.android.gms.ads.formats.NativeAd.Image> images = new ArrayList<>();
+            images.add(new FacebookAdapterNativeAdImage(
+                    Uri.parse(mNativeAd.getAdCoverImage().toString())));
+            setImages(images);
+            setBody(mNativeAd.getAdBodyText());
+            setIcon(new FacebookAdapterNativeAdImage(Uri.parse(mNativeAd.getAdIcon().toString())));
+            setCallToAction(mNativeAd.getAdCallToAction());
+            setAdvertiser(mNativeAd.getAdvertiserName());
+
+            mMediaView.setListener(new MediaViewListener() {
+                @Override
+                public void onPlay(MediaView mediaView) {
+                    // Google Mobile Ads SDK doesn't have a matching event. Do nothing.
+                }
+
+                @Override
+                public void onVolumeChange(MediaView mediaView, float v) {
+                    // Google Mobile Ads SDK doesn't have a matching event. Do nothing.
+                }
+
+                @Override
+                public void onPause(MediaView mediaView) {
+                    // Google Mobile Ads SDK doesn't have a matching event. Do nothing.
+                }
+
+                @Override
+                public void onComplete(MediaView mediaView) {
+                    if (FacebookAdapter.this.mNativeListener != null) {
+                        FacebookAdapter.this.mNativeListener.onVideoEnd(FacebookAdapter.this);
+                    }
+                }
+
+                @Override
+                public void onEnterFullscreen(MediaView mediaView) {
+                    // Google Mobile Ads SDK doesn't have a matching event. Do nothing.
+                }
+
+                @Override
+                public void onExitFullscreen(MediaView mediaView) {
+                    // Google Mobile Ads SDK doesn't have a matching event. Do nothing.
+                }
+
+                @Override
+                public void onFullscreenBackground(MediaView mediaView) {
+                    // Google Mobile Ads SDK doesn't have a matching event. Do nothing.
+                }
+
+                @Override
+                public void onFullscreenForeground(MediaView mediaView) {
+                    // Google Mobile Ads SDK doesn't have a matching event. Do nothing.
+                }
+            });
+
+            // Because the FAN SDK doesn't offer a way to determine whether a native ad contains
+            // a video asset or not, the adapter always returns a MediaView and claims to have
+            // video content.
+            setMediaView(mMediaView);
+            setHasVideoContent(true);
+
+            // Map the optional assets.
+            Double starRating = getRating(mNativeAd.getAdStarRating());
+            if (starRating != null) {
+                setStarRating(starRating);
+            }
+
+            // Pass all the assets not supported by Google as extras.
+            Bundle extras = new Bundle();
+            extras.putCharSequence(KEY_ID, mNativeAd.getId());
+            extras.putCharSequence(KEY_SOCIAL_CONTEXT_ASSET, mNativeAd.getAdSocialContext());
+            setExtras(extras);
+
+            mapperListener.onMappingSuccess();
+        }
+
+        /**
+         * This method will check whether or not the given Facebook native ad contains all the
+         * necessary fields for it to be mapped to Google Mobile Ads' Unified install ad.
+         *
+         * @param nativeAd Facebook native ad.
+         * @return {@code true} if the given ad contains all the necessary fields, {@link false}
+         * otherwise.
+         */
+        private boolean containsRequiredFieldsForUnifiedNativeAd(NativeAd nativeAd) {
+            return ((nativeAd.getAdHeadline() != null) && (nativeAd.getAdCoverImage() != null)
+                    && (nativeAd.getAdBodyText() != null) && (nativeAd.getAdIcon() != null)
+                    && (nativeAd.getAdCallToAction() != null) && (mMediaView != null));
+        }
+
+        @Override
+        public void trackViews(View view,
+                               Map<String, View> clickableAssetViews,
+                               Map<String, View> nonClickableAssetViews) {
+
+            ViewGroup adView = (ViewGroup) view;
+
+            // Find the overlay view in the given ad view. The overlay view will always be the
+            // top most view in the hierarchy.
+            View overlayView = adView.getChildAt(adView.getChildCount() - 1);
+            NativeAdLayout nativeAdLayout = new NativeAdLayout(view.getContext());
+            if (overlayView instanceof FrameLayout) {
+                // Create and add Facebook's AdOptions to the overlay view.
+                AdOptionsView adOptionsView = new AdOptionsView(view.getContext(),mNativeAd,nativeAdLayout);
+                ((ViewGroup) overlayView).addView(adOptionsView);
+                // We know that the overlay view is a FrameLayout, so we get the FrameLayout's
+                // LayoutParams from the AdOptionsView.
+                FrameLayout.LayoutParams params =
+                        (FrameLayout.LayoutParams) adOptionsView.getLayoutParams();
+                if (mNativeAdOptions != null) {
+                    switch (mNativeAdOptions.getAdChoicesPlacement()) {
+                        case NativeAdOptions.ADCHOICES_TOP_LEFT:
+                            params.gravity = Gravity.TOP | Gravity.LEFT;
+                            break;
+                        case NativeAdOptions.ADCHOICES_BOTTOM_RIGHT:
+                            params.gravity = Gravity.BOTTOM | Gravity.RIGHT;
+                            break;
+                        case NativeAdOptions.ADCHOICES_BOTTOM_LEFT:
+                            params.gravity = Gravity.BOTTOM | Gravity.LEFT;
+                            break;
+                        case NativeAdOptions.ADCHOICES_TOP_RIGHT:
+                        default:
+                            params.gravity = Gravity.TOP | Gravity.RIGHT;
+                    }
+                } else {
+                    // Default to top right if native ad options are not provided.
+                    params.gravity = Gravity.TOP | Gravity.RIGHT;
+                }
+                adView.requestLayout();
+            } else {
+                AdOptionsView adOptionsView = new AdOptionsView(view.getContext(), mNativeAd, nativeAdLayout);
+                this.setAdChoicesContent(adOptionsView);
+            }
+
+            // Facebook does its own impression tracking.
+            setOverrideImpressionRecording(true);
+
+            // Facebook does its own click handling.
+            setOverrideClickHandling(true);
+            ImageView iconview = null;
+
+            ArrayList<View> assetViews = new ArrayList<>();
+            for (Map.Entry<String, View> clickableAssets : clickableAssetViews.entrySet()) {
+                assetViews.add(clickableAssets.getValue());
+
+                if (clickableAssets.getKey().equals(NativeAppInstallAd.ASSET_ICON) ||
+                        clickableAssets.getKey().equals(UnifiedNativeAdAssetNames.ASSET_ICON)) {
+                    iconview = (ImageView) clickableAssets.getValue();
+                }
+
+            }
+
+            mNativeAd.registerViewForInteraction(view, mMediaView, iconview, assetViews);
+        }
+
+
+        @Override
+        public void untrackView(View view) {
+            super.untrackView(view);
+            // Called when the native ad view no longer needs tracking. Remove any previously
+            // added trackers.
+
+            ViewGroup adView = (ViewGroup) view;
+            // Find the overlay view in the given ad view. The overlay view will always be the
+            // top most view in the hierarchy.
+            View overlayView = adView.getChildAt(adView.getChildCount() - 1);
+            if (overlayView instanceof FrameLayout) {
+                ((FrameLayout) overlayView).removeAllViews();
+            }
+
+            mNativeAd.unregisterView();
+        }
+
+        /**
+         * Convert rating to a scale of 1 to 5.
+         */
+        private Double getRating(NativeAd.Rating rating) {
+            if (rating == null) {
+                return null;
+            }
+            return (MAX_STAR_RATING * rating.getValue()) / rating.getScale();
         }
     }
-
     /**
      * The {@link FacebookAdapterNativeAdImage} class is a subclass of
      * {@link com.google.android.gms.ads.formats.NativeAd.Image} used by the {@link FacebookAdapter}
