@@ -145,6 +145,11 @@ public final class UnitySingleton {
         // method. If ads are currently being loaded, wait for the callbacks from
         // unitySingletonListenerInstance.
         if (UnityAds.isInitialized()) {
+            MetaData metaData = new MetaData(Activity);
+            metaData.setCategory("load");
+            metaData.set("placementID", "load_placement");
+            metaData.commit();
+
             if (UnityAds.isReady(delegate.getPlacementId())) {
                 delegate.onUnityAdsReady(delegate.getPlacementId());
             } else {
