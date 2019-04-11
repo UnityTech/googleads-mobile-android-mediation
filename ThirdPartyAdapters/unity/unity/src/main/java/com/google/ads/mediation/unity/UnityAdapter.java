@@ -29,6 +29,7 @@ import com.google.android.gms.ads.mediation.MediationBannerListener;
 import com.google.android.gms.ads.mediation.MediationInterstitialAdapter;
 import com.google.android.gms.ads.mediation.MediationInterstitialListener;
 import com.google.android.gms.ads.mediation.OnContextChangedListener;
+import com.google.android.gms.ads.reward.mediation.InitializableMediationRewardedVideoAdAdapter;
 import com.google.android.gms.ads.reward.mediation.MediationRewardedVideoAdAdapter;
 import com.google.android.gms.ads.reward.mediation.MediationRewardedVideoAdListener;
 import com.unity3d.ads.UnityAds;
@@ -37,14 +38,13 @@ import com.unity3d.ads.metadata.MediationMetaData;
 import com.unity3d.services.banners.UnityBanners;
 
 import java.lang.ref.WeakReference;
-
-import static android.content.ContentValues.TAG;
+import java.util.List;
 
 /**
  * The {@link UnityAdapter} is used to load Unity ads and mediate the callbacks between Google
  * Mobile Ads SDK and Unity Ads SDK.
  */
-
+@Keep
 public class UnityAdapter implements MediationRewardedVideoAdAdapter, MediationInterstitialAdapter,
         OnContextChangedListener, MediationBannerAdapter {
 

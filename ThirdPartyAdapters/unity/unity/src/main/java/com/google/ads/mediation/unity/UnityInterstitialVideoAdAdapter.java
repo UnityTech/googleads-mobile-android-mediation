@@ -105,6 +105,8 @@ public class UnityInterstitialVideoAdAdapter implements MediationInterstitialAda
             }
         });
 
+        mAd.load(context);
+
         mActivityWeakReference = new WeakReference<>((Activity) context);
     }
 
