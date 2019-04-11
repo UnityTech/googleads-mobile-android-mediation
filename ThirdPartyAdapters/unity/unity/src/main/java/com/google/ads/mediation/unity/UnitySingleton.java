@@ -64,7 +64,14 @@ public class UnitySingleton implements UnitySdkListener {
     /**
      * Hidden constructor.
      */
+<<<<<<< HEAD
     private UnitySingleton() { /**/ }
+=======
+    private static UnitySingletonListener unitySingletonListenerInstance;
+    private static WeakReference<UnityAdapterBannerDelegate> bannerDelegate;
+
+    private static WeakReference<Activity> activity;
+>>>>>>> origin/master
 
     /**
      * Initializes UnityAds.
@@ -146,9 +153,6 @@ public class UnitySingleton implements UnitySdkListener {
         }
 
         setMediationMetadata(context);
-
-        UnityServices.addSdkListener(this);
-        UnityMobileAds.enablePerPlacementLoading();
         UnityMonetization.initialize((Activity) context, gameId);
         return true;
     }
@@ -208,23 +212,5 @@ public class UnitySingleton implements UnitySdkListener {
         mediationMetaData.setName(MEDIATION_ADAPTER_NAME);
         mediationMetaData.setVersion(MEDIATION_ADAPTER_VERSION);
         mediationMetaData.commit();
-    }
-
-    /**
-     * This class is needed for {@link UnityAds#initialize(Activity, String, IUnityAdsListener)},
-     * but is not actually used under mediation.
-     */
-    private class NullUnityAdsListener implements IUnityAdsListener {
-        @Override
-        public void onUnityAdsReady(String s) { }
-
-        @Override
-        public void onUnityAdsStart(String s) { }
-
-        @Override
-        public void onUnityAdsFinish(String s, UnityAds.FinishState finishState) { }
-
-        @Override
-        public void onUnityAdsError(UnityAds.UnityAdsError unityAdsError, String s) { }
     }
 }
