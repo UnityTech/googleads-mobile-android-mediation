@@ -3,13 +3,9 @@ package com.google.ads.mediation.unity;
 import android.app.Activity;
 import android.content.Context;
 
-import com.unity3d.ads.IUnityAdsListener;
 import com.unity3d.ads.UnityAds;
 import com.unity3d.ads.metadata.MediationMetaData;
 import com.unity3d.services.UnitySdkListener;
-import com.unity3d.services.UnityServices;
-import com.unity3d.services.monetization.UnityMonetization;
-import com.unity3d.services.monetization.mobileads.UnityMobileAds;
 
 import java.lang.ref.WeakReference;
 import java.util.Collections;
@@ -64,14 +60,7 @@ public class UnitySingleton implements UnitySdkListener {
     /**
      * Hidden constructor.
      */
-<<<<<<< HEAD
     private UnitySingleton() { /**/ }
-=======
-    private static UnitySingletonListener unitySingletonListenerInstance;
-    private static WeakReference<UnityAdapterBannerDelegate> bannerDelegate;
-
-    private static WeakReference<Activity> activity;
->>>>>>> origin/master
 
     /**
      * Initializes UnityAds.
@@ -147,13 +136,13 @@ public class UnitySingleton implements UnitySdkListener {
         }
 
         // Validate the context
-        if (context == null || !(context instanceof Activity)) {
+        if (!(context instanceof Activity)) {
             setErrorState(new IllegalArgumentException("Context was not a valid Activity instance"));
             return false;
         }
 
         setMediationMetadata(context);
-        UnityMonetization.initialize((Activity) context, gameId);
+        UnityAds.initialize((Activity) context, gameId);
         return true;
     }
 
