@@ -6,6 +6,7 @@ import android.content.Context;
 import com.unity3d.ads.UnityAds;
 import com.unity3d.ads.metadata.MediationMetaData;
 import com.unity3d.services.UnitySdkListener;
+import com.unity3d.services.UnityServices;
 
 import java.lang.ref.WeakReference;
 import java.util.Collections;
@@ -142,7 +143,7 @@ public class UnitySingleton implements UnitySdkListener {
         }
 
         setMediationMetadata(context);
-        UnityAds.initialize((Activity) context, gameId);
+        UnityAds.initialize((Activity) context, gameId, this);
         return true;
     }
 
