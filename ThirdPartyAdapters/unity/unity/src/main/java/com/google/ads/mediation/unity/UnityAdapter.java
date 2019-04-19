@@ -519,12 +519,12 @@ public class UnityAdapter implements MediationRewardedVideoAdAdapter, MediationI
         }
 
         public void loadAd() {
-            if (mBannerAd != null) {
+            if (mBannerAd == null) {
                 mBannerAd = new BannerAd(mActivityWeakReference.get(), mPlacementId, new BannerSize(mAdSize.getWidth(), mAdSize.getHeight()));
-                mBannerAd.setListener(this);
-                mBannerAd.setAutoRefresh(false);
-                mBannerAd.load();
             }
+            mBannerAd.setListener(this);
+            mBannerAd.setAutoRefresh(false);
+            mBannerAd.load();
         }
 
         @Override
