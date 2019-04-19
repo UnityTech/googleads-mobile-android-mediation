@@ -332,6 +332,10 @@ public class UnityAdapter implements MediationRewardedVideoAdAdapter, MediationI
         }
 
         private void loadAd() {
+            if (mInterstitial != null) {
+                mInterstitial.destroy();
+                mInterstitial = null;
+            }
             mInterstitial = new InterstitialAd(mActivityWeakReference.get(), mPlacementId);
             mInterstitial.setListener(this);
             mInterstitial.load();
@@ -346,6 +350,10 @@ public class UnityAdapter implements MediationRewardedVideoAdAdapter, MediationI
 
         @Override
         public void onInterstitialAdFailedToLoad(InterstitialAd interstitial, AdRequestException e) {
+            if (mInterstitial != null) {
+                mInterstitial.destroy();
+                mInterstitial = null;
+            }
             if (mMediationInterstitialListener != null) {
                 mMediationInterstitialListener.onAdFailedToLoad(UnityAdapter.this, AdRequest.ERROR_CODE_INTERNAL_ERROR);
             }
@@ -482,6 +490,7 @@ public class UnityAdapter implements MediationRewardedVideoAdAdapter, MediationI
         public void loadAd() {
             if (mRewardedVideo != null) {
                 mRewardedVideo.destroy();
+                mRewardedVideo = null;
             }
 
             mRewardedVideo = new RewardedAd(mActivityWeakReference.get(), mPlacementId);
@@ -520,11 +529,13 @@ public class UnityAdapter implements MediationRewardedVideoAdAdapter, MediationI
 
         public void loadAd() {
             if (mBannerAd != null) {
-                mBannerAd = new BannerAd(mActivityWeakReference.get(), mPlacementId, new BannerSize(mAdSize.getWidth(), mAdSize.getHeight()));
-                mBannerAd.setListener(this);
-                mBannerAd.setAutoRefresh(false);
-                mBannerAd.load();
+                mBannerAd.destroy();
+                mBannerAd = null;
             }
+            mBannerAd = new BannerAd(mActivityWeakReference.get(), mPlacementId, new BannerSize(mAdSize.getWidth(), mAdSize.getHeight()));
+            mBannerAd.setListener(this);
+            mBannerAd.setAutoRefresh(false);
+            mBannerAd.load();
         }
 
         @Override
