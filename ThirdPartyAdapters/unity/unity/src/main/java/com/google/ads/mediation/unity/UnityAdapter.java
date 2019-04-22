@@ -417,6 +417,13 @@ public class UnityAdapter implements MediationRewardedVideoAdAdapter, MediationI
         }
 
         @Override
+        public void onRewardedVideoAdOpened(RewardedAd rewardedVIdeo) {
+            if (mMediationRewardedVideoAdListener != null) {
+                mMediationRewardedVideoAdListener.onAdOpened(UnityAdapter.this);
+            }
+        }
+
+        @Override
         public void onRewardedVideoAdLoaded(RewardedAd rewardedVideo) {
             if (mMediationRewardedVideoAdListener != null) {
                 mMediationRewardedVideoAdListener.onAdLoaded(UnityAdapter.this);
