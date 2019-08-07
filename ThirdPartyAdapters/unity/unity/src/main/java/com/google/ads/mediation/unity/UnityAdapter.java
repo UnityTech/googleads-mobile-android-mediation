@@ -314,7 +314,7 @@ public class UnityAdapter implements MediationRewardedVideoAdAdapter, MediationI
         }
 
         // Check if the Unity Ads initialized successfully.
-        if (!UnitySingleton.initializeUnityAds(mUnityAdapterDelegate, (Activity) context, gameId)) {
+        if (!UnitySingleton.initializeUnityAds(mUnityAdapterDelegate, (Activity) context, gameId, mPlacementId)) {
             if (mMediationInterstitialListener != null) {
                 mMediationInterstitialListener.onAdFailedToLoad(UnityAdapter.this,
                         AdRequest.ERROR_CODE_INVALID_REQUEST);
@@ -373,7 +373,7 @@ public class UnityAdapter implements MediationRewardedVideoAdAdapter, MediationI
         }
 
         // Check if the Unity Ads initialized.
-        if (!UnitySingleton.initializeUnityAds(mUnityAdapterDelegate, (Activity) context, gameId)) {
+        if (!UnitySingleton.initializeUnityAds(mUnityAdapterDelegate, (Activity) context, gameId, mPlacementId)) {
             if (mMediationRewardedVideoAdListener != null) {
                 mMediationRewardedVideoAdListener.onInitializationFailed(UnityAdapter.this,
                         AdRequest.ERROR_CODE_INVALID_REQUEST);
@@ -473,7 +473,7 @@ public class UnityAdapter implements MediationRewardedVideoAdAdapter, MediationI
 
         // Even though we are a banner request, we still need to initialize UnityAds.
         // Check if the Unity Ads initialized successfully.
-        if (!UnitySingleton.initializeUnityAds(mUnityAdapterDelegate, (Activity) context, gameId)) {
+        if (!UnitySingleton.initializeUnityAds(mUnityAdapterDelegate, (Activity) context, gameId, mPlacementId, bannerDelegate)) {
             if (bannerListener != null) {
                 bannerListener.onAdFailedToLoad(UnityAdapter.this,
                         AdRequest.ERROR_CODE_INVALID_REQUEST);
